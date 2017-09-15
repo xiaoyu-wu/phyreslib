@@ -1,1 +1,1 @@
-from image_plot_ui import ImagePlotUI
+from .image_plot_ui import ImagePlotUI

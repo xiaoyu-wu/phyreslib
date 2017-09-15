@@ -1,7 +1,7 @@
 # Standard library imports
 
 # Major library imports
-from numpy import exp, linspace, meshgrid, array
+from numpy import exp, linspace, meshgrid, array, errstate
 
 # Enthought library imports
 from traits.api import HasTraits, Instance, Enum, Trait, Callable
@@ -30,9 +30,9 @@ class ImagePlotUI(HasTraits):
     # View options
     colormap = Enum(colormaps)
 
-    #Traits view definitions:
+    # Traits view definitions:
     traits_view = View(
-        Group(UItem('container', editor=ComponentEditor(size=(650, 600)))),
+        Group(UItem('container', editor=ComponentEditor(size=(350, 300)))),
         resizable=True
     )
 
@@ -48,7 +48,7 @@ class ImagePlotUI(HasTraits):
     _image_index = Instance(GridDataSource)
     _image_value = Instance(ImageData)
 
-    _cmap = Trait(default_colormaps.Blues, Callable)
+    _cmap = Trait(default_colormaps.gray, Callable)
 
     #---------------------------------------------------------------------------
     # Public View interface
@@ -56,7 +56,8 @@ class ImagePlotUI(HasTraits):
 
     def __init__(self, *args, **kwargs):
         super(ImagePlotUI, self).__init__(*args, **kwargs)
-        self.create_plot()
+        with errstate(invalid='ignore'):
+            self.create_plot()
 
     def create_plot(self):
 
@@ -113,7 +114,10 @@ class ImagePlotUI(HasTraits):
         self.container.add(self.colorbar)
         self.container.add(self.plot)
 
-    def update(self, xs, ys, zs):
+    def update(self, image_data_source):
+        xs = image_data_source.xs
+        ys = image_data_source.ys
+        zs = image_data_source.zs
         self.minz = zs.min()
         self.maxz = zs.max()
         self.colorbar.index_mapper.range.low = self.minz
@@ -135,14 +139,3 @@ class ImagePlotUI(HasTraits):
             self.plot.color_mapper = self._cmap(value_range)
             self.container.request_redraw()
 
-if __name__ == "__main__":
-    ip = ImagePlotUI()
-    test_x = linspace(0, 10, 50)
-    test_y = linspace(0, 5, 50)
-    test_xgrid, test_ygrid = meshgrid(test_x, test_y)
-    test_z = exp(-(test_xgrid * test_xgrid + test_ygrid * test_ygrid) / 100)
-    ip.update(xs=test_x, ys=test_y, zs=test_z)
-    ip.configure_traits()
-    test_z = (0.5 * test_xgrid * test_xgrid + test_ygrid * test_ygrid)
-    ip.update(xs=test_x, ys=test_y, zs=test_z)
-    ip.configure_traits()
