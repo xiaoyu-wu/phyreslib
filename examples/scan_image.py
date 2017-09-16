@@ -9,21 +9,23 @@ import numpy as np
 from traits.api import HasTraits, Instance, Button, on_trait_change
 from traitsui.api import Item, View
 
-
 from ..data_source.api import ImageDataSource
 from ..ui.api import ImagePlotUI
 from ..measurement.api import ImageDataGenerator
 
-
+# Use thread for measurement in case of stopping halfway
 class ScanThread(Thread):
     def run(self):
+        # Update data source
         self.image_data_source.xs = self.fast_axis_array
         self.image_data_source.ys = self.slow_axis_array
         self.image_data_source.zs = np.zeros((256,256))
         for i in range(256):
             if not self.wants_abort:
                 now = time.time()
+                # Update one line of the matrix zs
                 self.image_data_source.zs[i] = self.image_data_generator.get_new_line()
+                # Update value of image_data_source.last_update to trigger event, data_source_changed
                 self.image_data_source.last_update = str(now)
                 elapsed = time.time() - now
                 remaining = self.scan_period - elapsed

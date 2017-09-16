@@ -1,8 +1,10 @@
-from numpy import linspace, eye, zeros
+from numpy import linspace, zeros
 from traits.api import HasTraits, Str, Array, Event
 
 
 class ImageDataSource(HasTraits):
+    """ Standard data source for ImagePlotUI
+    """
     xs = Array
     ys = Array
     zs = Array
