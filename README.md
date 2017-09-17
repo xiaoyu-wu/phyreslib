@@ -17,7 +17,7 @@ Welcome to physics research library (`phyreslib` or `prl`)! Based on research ex
 ```
 (prl-env)[~]$ mkdir ~/prl-demo
 (prl-env)[~]$ cd ~/prl-demo
-(prl-env)[~/prl-demo]$ git clone https://github.com/OrbitSoft/phyreslib
+(prl-env)[~/prl-demo]$ git clone https://github.com/xiaoyu-wu/phyreslib
 (prl-env) [~/prl-demo]$ cd ~/prl-demo/phyreslib/
 (prl-env) [~/prl-demo/phyreslib]$ git checkout master
 ```
