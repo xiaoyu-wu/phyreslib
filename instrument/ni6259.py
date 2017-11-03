@@ -1,20 +1,23 @@
+# FIXME: Refactor using official NI package nidaqmx?
+
 # Major library imports
 import numpy
 from PyDAQmx import (
     Task, int32, byref, DAQmx_Val_Cfg_Default, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps,
     DAQmx_Val_Volts, DAQmx_Val_RisingSlope, DAQmx_Val_GroupByChannel
-) 
+)
 
 # Enthought library imports
 from traits.api import HasTraits
+
 
 class NI6259(HasTraits):
     def __init__(self, DeviceName, *args, **kwargs):
         super(NI6259, self).__init__(*args, **kwargs)
         self.DeviceName = DeviceName
         
-    def SyncAOAI(self, ao_ch_num, ai_ch_num, ao_data, time, sample_rate):
-        if len(ao_data) != time * sample_rate:
+    def sync_aoai(self, ao_ch_num, ai_ch_num, ao_data, time, ao_sample_rate, ai_sample_rate):
+        if len(ao_data) != time * ao_sample_rate:
             raise RuntimeError("Output sequence does not match with number of output samples.")
             return
 
@@ -23,23 +26,23 @@ class NI6259(HasTraits):
         read = int32()
         write = int32()
         
-        ai_data = numpy.zeros(int(time * sample_rate), dtype=numpy.float64)
-        t_data = numpy.zeros(int(time * sample_rate), dtype=numpy.float64)
-        for i in range( int(time * sample_rate) ):
-           t_data[i] = float(i) / (time * sample_rate) * time
+        ai_data = numpy.zeros(int(time * ai_sample_rate), dtype=numpy.float64)
+        t_data = numpy.zeros(int(time * ai_sample_rate), dtype=numpy.float64)
+        for i in range( int(time * ai_sample_rate) ):
+            t_data[i] = float(i) / (time * ai_sample_rate) * time
             
         # DAQmx Configure Code
 
         ai.CreateAIVoltageChan(self.DeviceName+"/ai"+str(ai_ch_num),"",DAQmx_Val_Cfg_Default,-10.0,10.0,DAQmx_Val_Volts,None)
-        ai.CfgSampClkTiming("",sample_rate,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,int(time*sample_rate))
+        ai.CfgSampClkTiming("", ai_sample_rate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, int(time*ai_sample_rate))
 
         ao.CreateAOVoltageChan(self.DeviceName+"/ao"+str(ao_ch_num),"",-10.0,10.0,DAQmx_Val_Volts,None)
-        ao.CfgSampClkTiming("",sample_rate,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,int(time*sample_rate))
+        ao.CfgSampClkTiming("", ao_sample_rate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, int(time*ao_sample_rate))
 
         ao.CfgDigEdgeStartTrig("/"+self.DeviceName+"/ai/StartTrigger", DAQmx_Val_RisingSlope)        
         
         # DAQmx Write Code
-        ao.WriteAnalogF64(int(time*sample_rate),0,10.0,DAQmx_Val_GroupByChannel,ao_data,byref(write),None)
+        ao.WriteAnalogF64(int(time*ao_sample_rate), 0, 10.0, DAQmx_Val_GroupByChannel, ao_data, byref(write), None)
         #print "Samples written:", write.value
 
         # DAQmx Start Code
@@ -47,7 +50,7 @@ class NI6259(HasTraits):
         ai.StartTask()
 
         # DAQmx Read Code
-        ai.ReadAnalogF64(int(time*sample_rate),10.0,DAQmx_Val_GroupByChannel,ai_data,int(time*sample_rate),byref(read),None)
+        ai.ReadAnalogF64(int(time*ai_sample_rate), 10.0, DAQmx_Val_GroupByChannel, ai_data, int(time*ai_sample_rate), byref(read), None)
         #print "Samples read:", read.value
 
         # DAQmx Clear Code
@@ -97,9 +100,9 @@ if __name__ == "__main__":
     ni6259 = NI6259("NI6259")
     import time
     now = time.time()
-    _, ai_data = ni6259.SyncAOAI(0, 0, ao_data, samp_time, samp_rate)
+    _, ai_data = ni6259.sync_aoai(0, 0, ao_data, samp_time, samp_rate, samp_rate / 10)
     elapsed = time.time() - now
-    ai_data_avg = averageArray(ai_data, 2000)
+    ai_data_avg = averageArray(ai_data, 200)
     print "ao data: {}, ai data: {}, used time: {}".format(ao_data, ai_data_avg, elapsed)
 
 
