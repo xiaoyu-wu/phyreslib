@@ -5,6 +5,11 @@ import math
 # Major Libraries
 import numpy as np
 
+# Enthought library imports
+from traits.api import HasTraits, Str, Int, Array, Enum, Float, Instance, Tuple
+
+from ..instrument.api import NI6259
+
 
 def generate_waveform(waveform, time_span, freq, samp_rate, amplitude, phase, offset):
     """
@@ -47,7 +52,7 @@ def generate_waveform(waveform, time_span, freq, samp_rate, amplitude, phase, of
     return output_data + offset
 
 
-def generate_piezo_voltage(min_volt, max_volt, scan_rate=0.1, pixels=4096, waveform="Triangular"):
+def generate_piezo_voltage(min_volt, max_volt, scan_rate, pixels, waveform="Triangular"):
     """
     Generates the sequence of voltages to be applied to the piezo for fast axis scanning
     Parameters
@@ -75,9 +80,49 @@ def generate_piezo_voltage(min_volt, max_volt, scan_rate=0.1, pixels=4096, wavef
     return generate_waveform(waveform=waveform, time_span=time_span, freq=scan_rate, samp_rate=samp_rate, amplitude=amplitude, phase=phase, offset=offset)
 
 
+AO_PORTS = range(4)
+AI_PORTS = range(24)
+
+class ScanController(HasTraits):
+    """ Controls voltages to be supplied scanners
+    """
+    daq_board = Instance(NI6259)
+    x_axis_index = Enum(AO_PORTS)
+    y_axis_index = Enum(AO_PORTS)
+    scan_rate = Float(0.1)
+    x_scan_range = Tuple((0, 2))
+    y_scan_range = Tuple((0, 2))
+    pixels = Int(256)
+    output_smoothing_ratio = 100
+    input_averaging_pts = 100
+
+
+    def __init__(self, device_name, x_axis_index=0, y_axis_index=1):
+        self.daq_board = NI6259(device_name)
+        self.x_axis_index = x_axis_index
+        self.y_axis_index = y_axis_index
+
+    def sync_scan_read_1d(self):
+        samp_time = 1.0 / self.scan_rate
+        output_samples = self.pixels * self.output_smoothing_ratio * 2  # 2 for trace and retrace
+        input_samples = self.pixels * self.input_averaging_pts * 2      # 2 for trace and retrace
+        ao_data = generate_piezo_voltage(self.x_scan_range[0], self.x_scan_range[1], self.scan_rate, output_samples / 2)
+        print len(ao_data)
+        output_samp_rate = (output_samples) / samp_time
+        input_samp_rate = (input_samples) / samp_time
+        print output_samp_rate * samp_time
+        t_data, ai_data = self.daq_board.sync_aoai(self.x_axis_index, 1, ao_data, samp_time, output_samp_rate, input_samp_rate)
+        return [ao_data, ai_data]
+
+    def sync_scan_read_2d(self):
+        pass
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    outputdata = generate_piezo_voltage(0, 1)
-    plt.plot(outputdata)
+    test = ScanController('NI6259')
+    test.scan_rate = 0.1
+    ao_data, ai_data = test.sync_scan_read_1d()
+    plt.plot(ao_data, 'b-')
+    plt.plot(ai_data, 'r-')
     plt.show()
-    print outputdata[-1], outputdata[-2]
+    print ao_data[-10:-1], ai_data[-10:-1]
