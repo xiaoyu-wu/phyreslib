@@ -80,6 +80,18 @@ def generate_piezo_voltage(min_volt, max_volt, scan_rate, pixels, waveform="Tria
     return generate_waveform(waveform=waveform, time_span=time_span, freq=scan_rate, samp_rate=samp_rate, amplitude=amplitude, phase=phase, offset=offset)
 
 
+def averageArray(input_array, averaging_points):
+    if type(input_array) != np.ndarray:
+        print "Input array must be numpy array type!"
+    else:
+        input_array_length = input_array.size
+        output_array_length = input_array_length // averaging_points
+        output_array = np.zeros(output_array_length, dtype=np.float64)
+        for j in range(output_array_length):
+            output_array[j] = np.average(input_array[averaging_points*j:averaging_points*(j+1):1])
+        return output_array
+
+
 AO_PORTS = range(4)
 AI_PORTS = range(24)
 
@@ -107,22 +119,33 @@ class ScanController(HasTraits):
         output_samples = self.pixels * self.output_smoothing_ratio * 2  # 2 for trace and retrace
         input_samples = self.pixels * self.input_averaging_pts * 2      # 2 for trace and retrace
         ao_data = generate_piezo_voltage(self.x_scan_range[0], self.x_scan_range[1], self.scan_rate, output_samples / 2)
-        print len(ao_data)
         output_samp_rate = (output_samples) / samp_time
         input_samp_rate = (input_samples) / samp_time
-        print output_samp_rate * samp_time
         t_data, ai_data = self.daq_board.sync_aoai(self.x_axis_index, 1, ao_data, samp_time, output_samp_rate, input_samp_rate)
-        return [ao_data, ai_data]
+        # ai_data_avg = averageArray(ai_data, self.input_averaging_pts)
+        ai_data_avg = np.mean(ai_data.reshape(-1, self.input_averaging_pts), axis=1)
+        return ai_data_avg
 
     def sync_scan_read_2d(self):
-        pass
+        slow_axis_squence = np.linspace(self.y_scan_range[0], self.y_scan_range[1], self.pixels)
+        image_data = np.zeros((self.pixels, self.pixels))
+        for i in range(self.pixels):
+            self.daq_board.set_ao(self.y_axis_index, slow_axis_squence[i])
+            ai = self.sync_scan_read_1d()
+            image_data[i] = ai[:self.pixels]
+        return image_data
+
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     test = ScanController('NI6259')
-    test.scan_rate = 0.1
-    ao_data, ai_data = test.sync_scan_read_1d()
-    plt.plot(ao_data, 'b-')
-    plt.plot(ai_data, 'r-')
+    test.scan_rate = 0.4
+    test.pixels = 64
+    # ao_data, ai_data = test.sync_scan_read_1d()
+    # plt.plot(ao_data, 'b-')
+    # plt.plot(ai_data, 'r-')
+    # plt.show()
+    # print ao_data[-10:-1], ai_data[-10:-1]
+    image = test.sync_scan_read_2d()
+    plt.matshow(image)
     plt.show()
-    print ao_data[-10:-1], ai_data[-10:-1]
