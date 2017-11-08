@@ -43,7 +43,6 @@ class NI6259(HasTraits):
 
         # DAQmx Write Code
         ao.WriteAnalogF64(int(time*ao_sample_rate), 0, 10.0, DAQmx_Val_GroupByChannel, ao_data, byref(write), None)
-        #print "Samples written:", write.value
 
         # DAQmx Start Code
         ao.StartTask()
@@ -51,7 +50,6 @@ class NI6259(HasTraits):
 
         # DAQmx Read Code
         ai.ReadAnalogF64(int(time*ai_sample_rate), 10.0, DAQmx_Val_GroupByChannel, ai_data, int(time*ai_sample_rate), byref(read), None)
-        #print "Samples read:", read.value
 
         # DAQmx Clear Code
         ao.ClearTask()
@@ -83,6 +81,49 @@ class NI6259(HasTraits):
         ao.StartTask()
         ao.WriteAnalogScalarF64(1, 10.0, value, None)
         ao.StopTask()
+
+    def sync_multi_channel_aoai(self, ao_channels, ai_channels, ao_data_list,
+                                time, ao_sample_rate, ai_sample_rate):
+        ao = Task()
+        ai = Task()
+        read = int32()
+        write = int32()
+
+        ai_ch_num = len(ai_channels)
+        ai_data_list = numpy.zeros((ai_ch_num, int(time * ai_sample_rate)), dtype=numpy.float64)
+        # t_data = numpy.zeros(int(time * ai_sample_rate), dtype=numpy.float64)
+        # for i in range( int(time * ai_sample_rate) ):
+        #     t_data[i] = float(i) / (time * ai_sample_rate) * time
+
+        # DAQmx Configure Code
+
+        for ai_channel in ai_channels:
+            ai.CreateAIVoltageChan(self.DeviceName+"/ai"+str(ai_channel),"",DAQmx_Val_Cfg_Default,-10.0,10.0,DAQmx_Val_Volts,None)
+            ai.CfgSampClkTiming("", ai_sample_rate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, int(time*ai_sample_rate))
+
+        for ao_channel in ao_channels:
+            ao.CreateAOVoltageChan(self.DeviceName+"/ao"+str(ao_channel),"",-10.0,10.0,DAQmx_Val_Volts,None)
+            ao.CfgSampClkTiming("", ao_sample_rate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, int(time*ao_sample_rate))
+
+        ao.CfgDigEdgeStartTrig("/"+self.DeviceName+"/ai/StartTrigger", DAQmx_Val_RisingSlope)
+
+        # DAQmx Write Code
+        ao_data = numpy.concatenate(ao_data_list)
+        ao.WriteAnalogF64(int(time*ao_sample_rate), 0, 10.0, DAQmx_Val_GroupByChannel, ao_data, byref(write), None)
+
+        # DAQmx Start Code
+        ao.StartTask()
+        ai.StartTask()
+
+        # DAQmx Read Code
+        for i in range(ai_ch_num):
+            ai.ReadAnalogF64(int(time*ai_sample_rate), 10.0, DAQmx_Val_GroupByChannel, ai_data_list[i], int(time*ai_sample_rate), byref(read), None)
+
+        # DAQmx Clear Code
+        ao.ClearTask()
+        ai.ClearTask()
+
+        return ai_data_list
 
 def averageArray(input_array, averaging_points):
     if type(input_array) != numpy.ndarray:

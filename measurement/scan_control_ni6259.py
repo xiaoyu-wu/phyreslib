@@ -6,7 +6,7 @@ import math
 import numpy as np
 
 # Enthought library imports
-from traits.api import HasTraits, Str, Int, Array, Enum, Float, Instance, Tuple
+from traits.api import HasTraits, Str, Int, Array, Enum, Float, Instance, Tuple, List
 
 from ..instrument.api import NI6259
 
@@ -126,8 +126,8 @@ class ScanController(HasTraits):
     input_averaging_pts = 100
     rotation = Float(0)
     fast_axis = Enum("x", "y")
-    x_start = Float(0)
-    y_start = Float(0)
+    start_position = List([0, 0])
+    current_position = List([0, 0])
 
     def __init__(self, device_name, x_axis_index=0, y_axis_index=1):
         self.daq_board = NI6259(device_name)
@@ -135,7 +135,7 @@ class ScanController(HasTraits):
         self.y_axis_index = y_axis_index
         self.fast_axis = "x"
 
-    def set_axis_voltage(self):
+    def set_axis_voltage(self, ):
         pass
 
     def sync_scan_read_1d(self):
@@ -157,11 +157,16 @@ class ScanController(HasTraits):
         fast_ao_data, slow_ao_data = generate_output_voltage(self.fast_scan_range, self.scan_rate,
                                                              output_samples / 2, rotation=self.rotation,
                                                              fast_axis=self.fast_axis)
-        fast_ao_data += self.x_start
+        if self.fast_axis == 'x':
+            fast_ao_data += self.current_position[0]
+            slow_ao_data += self.current_position[1]
+        else:
+            fast_ao_data += self.current_position[1]
+            slow_ao_data += self.current_position[0]
         output_samp_rate = output_samples / samp_time
         input_samp_rate = input_samples / samp_time
-        t_data, ai_data = self.daq_board.sync_aoai(self.x_axis_index, 1, fast_ao_data, samp_time, output_samp_rate, input_samp_rate)
-        ai_data_avg = np.mean(ai_data.reshape(-1, self.input_averaging_pts), axis=1)
+        ai_data = self.daq_board.sync_multi_channel_aoai([self.x_axis_index, self.y_axis_index], [1], [fast_ao_data, slow_ao_data], samp_time, output_samp_rate, input_samp_rate)
+        ai_data_avg = np.mean(ai_data[0].reshape(-1, self.input_averaging_pts), axis=1)
         return ai_data_avg
 
     def sync_scan_read_2d(self):
@@ -177,11 +182,19 @@ class ScanController(HasTraits):
         return image_data_trace, image_data_retrace
 
     def sync_scan_read_2d_with_rotation(self):
-        slow_axis_sequence = np.linspace(0, self.slow_scan_range, self.pixels)
+        if self.fast_axis == 'x':
+            destination = (-np.sin(self.rotation) * self.slow_scan_range, np.cos(self.rotation) * self.slow_scan_range)
+        else:
+            destination = (np.cos(self.rotation) * self.slow_scan_range, np.sin(self.rotation) * self.slow_scan_range)
+        x_sequence = np.linspace(self.current_position[0], destination[0], self.pixels)
+        y_sequence = np.linspace(self.current_position[1], destination[1], self.pixels)
         image_data = np.zeros((self.pixels, 2 * self.pixels))
 
         for i in range(self.pixels):
-            self.daq_board.set_ao(self.y_axis_index, slow_axis_sequence[i])
+            # self.daq_board.set_ao(self.x_axis_index, x_sequence[i])
+            # self.daq_board.set_ao(self.y_axis_index, y_sequence[i])
+            self.current_position[0] = x_sequence[i]
+            self.current_position[1] = y_sequence[i]
             ai = self.sync_scan_read_1d_with_rotation()
             image_data[i] = ai[:]
         image_data_trace = image_data[:, :self.pixels]
@@ -193,9 +206,8 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     test = ScanController('NI6259')
     test.scan_rate = 1
-    test.pixels = 32
+    test.pixels = 16
     test.rotation = np.pi / 4.0
-    test.x_start = 1
     # ao_data, ai_data = test.sync_scan_read_1d()
     # plt.plot(ao_data, 'b-')
     # plt.plot(ai_data, 'r-')
