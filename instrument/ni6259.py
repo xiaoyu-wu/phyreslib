@@ -76,11 +76,12 @@ class NI6259(HasTraits):
 
     def set_ao(self, ao_channel, value):
         ao = Task()
-        aopath = self.DeviceName + "/ao" + str(ao_channel)
-        ao.CreateAOVoltageChan(aopath, "", -10.0, 10.0, DAQmx_Val_Volts, None)
+        ao_path = self.DeviceName + "/ao" + str(ao_channel)
+        ao.CreateAOVoltageChan(ao_path, "", -10.0, 10.0, DAQmx_Val_Volts, None)
         ao.StartTask()
         ao.WriteAnalogScalarF64(1, 10.0, value, None)
         ao.StopTask()
+        ao.ClearTask()
 
     def sync_multi_channel_aoai(self, ao_channels, ai_channels, ao_data_list,
                                 time, ao_sample_rate, ai_sample_rate):
@@ -90,20 +91,16 @@ class NI6259(HasTraits):
         write = int32()
 
         ai_ch_num = len(ai_channels)
-        ai_data_list = numpy.zeros((ai_ch_num, int(time * ai_sample_rate)), dtype=numpy.float64)
-        # t_data = numpy.zeros(int(time * ai_sample_rate), dtype=numpy.float64)
-        # for i in range( int(time * ai_sample_rate) ):
-        #     t_data[i] = float(i) / (time * ai_sample_rate) * time
+        ai_data_list = numpy.zeros(int(time * ai_sample_rate * ai_ch_num), dtype=numpy.float64)
 
         # DAQmx Configure Code
-
         for ai_channel in ai_channels:
             ai.CreateAIVoltageChan(self.DeviceName+"/ai"+str(ai_channel),"",DAQmx_Val_Cfg_Default,-10.0,10.0,DAQmx_Val_Volts,None)
-            ai.CfgSampClkTiming("", ai_sample_rate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, int(time*ai_sample_rate))
+        ai.CfgSampClkTiming("", ai_sample_rate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, int(time*ai_sample_rate))
 
         for ao_channel in ao_channels:
-            ao.CreateAOVoltageChan(self.DeviceName+"/ao"+str(ao_channel),"",-10.0,10.0,DAQmx_Val_Volts,None)
-            ao.CfgSampClkTiming("", ao_sample_rate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, int(time*ao_sample_rate))
+            ao.CreateAOVoltageChan(self.DeviceName+"/ao"+str(ao_channel),"ao"+str(ao_channel),-10.0,10.0,DAQmx_Val_Volts,None)
+        ao.CfgSampClkTiming("", ao_sample_rate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, int(time*ao_sample_rate))
 
         ao.CfgDigEdgeStartTrig("/"+self.DeviceName+"/ai/StartTrigger", DAQmx_Val_RisingSlope)
 
@@ -116,25 +113,24 @@ class NI6259(HasTraits):
         ai.StartTask()
 
         # DAQmx Read Code
-        for i in range(ai_ch_num):
-            ai.ReadAnalogF64(int(time*ai_sample_rate), 10.0, DAQmx_Val_GroupByChannel, ai_data_list[i], int(time*ai_sample_rate), byref(read), None)
-
+        ai.ReadAnalogF64(int(time * ai_sample_rate), 10.0, DAQmx_Val_GroupByChannel, ai_data_list,
+                         int(time * ai_sample_rate * ai_ch_num), byref(read), None)
         # DAQmx Clear Code
         ao.ClearTask()
         ai.ClearTask()
 
-        return ai_data_list
+        return ai_data_list.reshape(ai_ch_num, time * ai_sample_rate)
 
-def averageArray(input_array, averaging_points):
-    if type(input_array) != numpy.ndarray:
-        print "Input array must be numpy array type!"
-    else:
-        input_array_length = input_array.size
-        output_array_length = input_array_length // averaging_points
-        output_array = numpy.zeros(output_array_length, dtype=numpy.float64)
-        for j in range(output_array_length):
-            output_array[j] = numpy.average(input_array[averaging_points*j:averaging_points*(j+1):1])
-        return output_array
+# def averageArray(input_array, averaging_points):
+#     if type(input_array) != numpy.ndarray:
+#         print "Input array must be numpy array type!"
+#     else:
+#         input_array_length = input_array.size
+#         output_array_length = input_array_length // averaging_points
+#         output_array = numpy.zeros(output_array_length, dtype=numpy.float64)
+#         for j in range(output_array_length):
+#             output_array[j] = numpy.average(input_array[averaging_points*j:averaging_points*(j+1):1])
+#         return output_array
 
 
 if __name__ == "__main__":

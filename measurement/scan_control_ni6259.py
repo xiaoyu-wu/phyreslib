@@ -115,9 +115,14 @@ AI_PORTS = range(24)
 class ScanController(HasTraits):
     """ Controls voltages to be supplied scanners
     """
+    # Hardware
     daq_board = Instance(NI6259)
+    # Hardware config. Output
     x_axis_index = Enum(AO_PORTS)
     y_axis_index = Enum(AO_PORTS)
+    # Hardware config. Input
+    input_ports = List([])
+    # Scan config.
     scan_rate = Float(0.1)
     fast_scan_range = Float(1)
     slow_scan_range = Float(1)
@@ -134,6 +139,7 @@ class ScanController(HasTraits):
         self.x_axis_index = x_axis_index
         self.y_axis_index = y_axis_index
         self.fast_axis = "x"
+        self.input_ports += [1, 3]
 
     def set_axis_voltage(self, ):
         pass
@@ -159,14 +165,20 @@ class ScanController(HasTraits):
                                                              fast_axis=self.fast_axis)
         if self.fast_axis == 'x':
             fast_ao_data += self.current_position[0]
+            fast_axis_index = self.x_axis_index
             slow_ao_data += self.current_position[1]
+            slow_axis_index = self.y_axis_index
         else:
             fast_ao_data += self.current_position[1]
+            fast_axis_index = self.y_axis_index
             slow_ao_data += self.current_position[0]
+            slow_axis_index = self.x_axis_index
         output_samp_rate = output_samples / samp_time
         input_samp_rate = input_samples / samp_time
-        ai_data = self.daq_board.sync_multi_channel_aoai([self.x_axis_index, self.y_axis_index], [1], [fast_ao_data, slow_ao_data], samp_time, output_samp_rate, input_samp_rate)
-        ai_data_avg = np.mean(ai_data[0].reshape(-1, self.input_averaging_pts), axis=1)
+        ai_data = self.daq_board.sync_multi_channel_aoai([fast_axis_index, slow_axis_index], self.input_ports, [fast_ao_data, slow_ao_data], samp_time, output_samp_rate, input_samp_rate)
+        ai_data_avg = np.zeros((len(self.input_ports), self.pixels * 2))
+        for i in range(len(self.input_ports)):
+            ai_data_avg[i] = np.mean(ai_data[i].reshape(-1, self.input_averaging_pts), axis=1)
         return ai_data_avg
 
     def sync_scan_read_2d(self):
@@ -188,18 +200,18 @@ class ScanController(HasTraits):
             destination = (np.cos(self.rotation) * self.slow_scan_range, np.sin(self.rotation) * self.slow_scan_range)
         x_sequence = np.linspace(self.current_position[0], destination[0], self.pixels)
         y_sequence = np.linspace(self.current_position[1], destination[1], self.pixels)
-        image_data = np.zeros((self.pixels, 2 * self.pixels))
+        images = np.zeros((len(self.input_ports), self.pixels, 2*self.pixels))
 
         for i in range(self.pixels):
-            # self.daq_board.set_ao(self.x_axis_index, x_sequence[i])
-            # self.daq_board.set_ao(self.y_axis_index, y_sequence[i])
+            self.daq_board.set_ao(self.x_axis_index, x_sequence[i])
+            self.daq_board.set_ao(self.y_axis_index, y_sequence[i])
             self.current_position[0] = x_sequence[i]
             self.current_position[1] = y_sequence[i]
             ai = self.sync_scan_read_1d_with_rotation()
-            image_data[i] = ai[:]
-        image_data_trace = image_data[:, :self.pixels]
-        image_data_retrace = image_data[:, self.pixels:]
-        return image_data_trace, image_data_retrace
+            images[:, i, :] = ai
+        images_trace = images[:, :, :self.pixels]
+        images_retrace = images[:, :, self.pixels:]
+        return images_trace, images_retrace
 
 
 if __name__ == '__main__':
@@ -207,15 +219,22 @@ if __name__ == '__main__':
     test = ScanController('NI6259')
     test.scan_rate = 1
     test.pixels = 16
-    test.rotation = np.pi / 4.0
+    test.rotation = np.pi / 4
+    test.fast_axis = 'x'
+    test.output_smoothing_ratio = 100
+    test.input_averaging_pts = 100
     # ao_data, ai_data = test.sync_scan_read_1d()
     # plt.plot(ao_data, 'b-')
     # plt.plot(ai_data, 'r-')
     # plt.show()
     # print ao_data[-10:-1], ai_data[-10:-1]
-    image_t, image_r = test.sync_scan_read_2d_with_rotation()
-    plt.subplot(121)
-    plt.imshow(image_t)
-    plt.subplot(122)
-    plt.imshow(image_r)
+    images_t, images_r = test.sync_scan_read_2d_with_rotation()
+    plt.subplot(221)
+    plt.imshow(images_t[0])
+    plt.subplot(222)
+    plt.imshow(images_r[0])
+    plt.subplot(223)
+    plt.imshow(images_t[1])
+    plt.subplot(224)
+    plt.imshow(images_r[1])
     plt.show()
