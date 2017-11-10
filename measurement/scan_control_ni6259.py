@@ -6,7 +6,7 @@ import math
 import numpy as np
 
 # Enthought library imports
-from traits.api import HasTraits, Str, Int, Array, Enum, Float, Instance, Tuple, List
+from traits.api import HasTraits, Str, Int, Array, Enum, Float, Instance, Tuple, List, on_trait_change
 
 from ..instrument.api import NI6259
 
@@ -135,14 +135,33 @@ class ScanController(HasTraits):
     current_position = List([0, 0])
 
     def __init__(self, device_name, x_axis_index=0, y_axis_index=1):
+        super(ScanController, self).__init__()
         self.daq_board = NI6259(device_name)
         self.x_axis_index = x_axis_index
         self.y_axis_index = y_axis_index
         self.fast_axis = "x"
         self.input_ports += [1, 3]
 
-    def set_axis_voltage(self, ):
-        pass
+
+    @on_trait_change('rotation')
+    def check_corner_positions(self, object, name, old, new):
+        corners = [np.array(self.start_position)]
+        if self.fast_axis == 'x':
+            fast_add = np.array([self.fast_scan_range * np.cos(self.rotation), self.fast_scan_range * np.sin(self.rotation)])
+            slow_add = np.array([- self.slow_scan_range * np.sin(self.rotation), self.slow_scan_range * np.cos(self.rotation)])
+        else:
+            fast_add = np.array([- self.fast_scan_range * np.sin(self.rotation), self.fast_scan_range * np.cos(self.rotation)])
+            slow_add = np.array([self.slow_scan_range * np.cos(self.rotation), self.slow_scan_range * np.sin(self.rotation)])
+
+        corners.append(corners[0] + fast_add)
+        corners.append(corners[0] + slow_add)
+        corners.append(corners[0] + fast_add + slow_add)
+
+        for corner in corners:
+            if corner[0] < 0 or corner[1] < 0:
+                print "WARNING! Negative voltage applied to piezo. Reset to previous rotation angle."
+                self.rotation = old
+                return
 
     def sync_scan_read_1d(self):
         samp_time = 1.0 / self.scan_rate
@@ -219,8 +238,10 @@ if __name__ == '__main__':
     test = ScanController('NI6259')
     test.scan_rate = 1
     test.pixels = 16
-    test.rotation = np.pi / 4
+    test.rotation = np.pi / 6
+    print test.rotation
     test.fast_axis = 'x'
+    test.slow_scan_range = 1
     test.output_smoothing_ratio = 100
     test.input_averaging_pts = 100
     # ao_data, ai_data = test.sync_scan_read_1d()
