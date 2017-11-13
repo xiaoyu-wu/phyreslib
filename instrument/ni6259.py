@@ -121,6 +121,26 @@ class NI6259(HasTraits):
 
         return ai_data_list.reshape(ai_ch_num, time * ai_sample_rate)
 
+    def multi_channel_ao(self, ao_channels, ao_data_list, time, ao_sample_rate):
+        ao = Task()
+        write = int32()
+
+        # DAQmx Configure Code
+        for ao_channel in ao_channels:
+            ao.CreateAOVoltageChan(self.DeviceName+"/ao"+str(ao_channel),"ao"+str(ao_channel),-10.0,10.0,DAQmx_Val_Volts,None)
+
+        # DAQmx Start Code
+        ao.StartTask()
+
+        # DAQmx Write Code
+        ao_data = numpy.concatenate(ao_data_list)
+        ao.WriteAnalogF64(int(time*ao_sample_rate), 0, 10.0, DAQmx_Val_GroupByChannel, ao_data, byref(write), None)
+
+        # DAQmx Clear Code
+        ao.ClearTask()
+
+        return
+
 # def averageArray(input_array, averaging_points):
 #     if type(input_array) != numpy.ndarray:
 #         print "Input array must be numpy array type!"

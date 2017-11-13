@@ -6,7 +6,7 @@ import math
 import numpy as np
 
 # Enthought library imports
-from traits.api import HasTraits, Str, Int, Array, Enum, Float, Instance, Tuple, List, on_trait_change
+from traits.api import (HasTraits, Str, Int, Array, Enum, Float, Instance, Tuple, List, on_trait_change, Property)
 
 from ..instrument.api import NI6259
 
@@ -94,7 +94,7 @@ def generate_output_voltage(scan_range, scan_rate, pixels, rotation=0, fast_axis
 
     Returns
     -------
-    Tuple of numpy arrays
+    Tuple of numpy arrays, arrays start from 0 and end at scan_range.
     """
     if fast_axis == 'x':
         fast_voltages = generate_piezo_voltage(0, scan_range * np.cos(rotation), scan_rate, pixels, waveform=waveform)
@@ -127,12 +127,13 @@ class ScanController(HasTraits):
     fast_scan_range = Float(1)
     slow_scan_range = Float(1)
     pixels = Int(256)
-    output_smoothing_ratio = 100
-    input_averaging_pts = 100
+    output_smoothing_ratio = 100  # To avoid abrupt voltage changes on piezo
+    input_averaging_pts = 100  # Averages input signal to reduce noise
     rotation = Float(0)
     fast_axis = Enum("x", "y")
     start_position = List([0, 0])
     current_position = List([0, 0])
+    max_voltage = Float(4.0)
 
     def __init__(self, device_name, x_axis_index=0, y_axis_index=1):
         super(ScanController, self).__init__()
@@ -158,8 +159,8 @@ class ScanController(HasTraits):
         corners.append(corners[0] + fast_add + slow_add)
 
         for corner in corners:
-            if corner[0] < 0 or corner[1] < 0:
-                print "WARNING! Negative voltage applied to piezo. Reset to previous rotation angle."
+            if corner[0] < 0 or corner[0] > self.max_voltage or corner[1] < 0 or corner[1] > self.max_voltage:
+                print "WARNING! Output voltage exceeds lower or upper limit. Reset to previous rotation angle."
                 self.rotation = old
                 return
 
@@ -214,9 +215,10 @@ class ScanController(HasTraits):
 
     def sync_scan_read_2d_with_rotation(self):
         if self.fast_axis == 'x':
-            destination = (-np.sin(self.rotation) * self.slow_scan_range, np.cos(self.rotation) * self.slow_scan_range)
+            destination = np.array([-np.sin(self.rotation) * self.slow_scan_range, np.cos(self.rotation) * self.slow_scan_range])
         else:
-            destination = (np.cos(self.rotation) * self.slow_scan_range, np.sin(self.rotation) * self.slow_scan_range)
+            destination = np.array([np.cos(self.rotation) * self.slow_scan_range, np.sin(self.rotation) * self.slow_scan_range])
+        destination += np.array(self.current_position)
         x_sequence = np.linspace(self.current_position[0], destination[0], self.pixels)
         y_sequence = np.linspace(self.current_position[1], destination[1], self.pixels)
         images = np.zeros((len(self.input_ports), self.pixels, 2*self.pixels))
@@ -232,6 +234,27 @@ class ScanController(HasTraits):
         images_retrace = images[:, :, self.pixels:]
         return images_trace, images_retrace
 
+    def move_to_start_position(self):
+        """ Moves tip position by slowly changing output voltages
+
+        Returns
+        -------
+
+        """
+        move_speed = self.fast_scan_range * self.scan_rate
+        move_unit = float(self.fast_scan_range) / (self.pixels * self.output_smoothing_ratio)
+        start = np.array(self.start_position)
+        current = np.array(self.current_position)
+        travel = start - current
+        distance = np.sqrt(travel[0] ** 2 + travel[1] ** 2)
+        move_time = float(distance) / move_speed
+        steps = round(distance / move_unit)
+        ao_x = np.linspace(current[0], start[0], steps)
+        ao_y = np.linspace(current[1], start[1], steps)
+        output_samp_rate = float(steps) / move_time
+        self.daq_board.multi_channel_ao([self.x_axis_index, self.y_axis_index], [ao_x, ao_y], move_time, output_samp_rate)
+        self.current_position[0:2] = self.start_position
+
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
@@ -239,7 +262,6 @@ if __name__ == '__main__':
     test.scan_rate = 1
     test.pixels = 16
     test.rotation = np.pi / 6
-    print test.rotation
     test.fast_axis = 'x'
     test.slow_scan_range = 1
     test.output_smoothing_ratio = 100
@@ -249,6 +271,9 @@ if __name__ == '__main__':
     # plt.plot(ai_data, 'r-')
     # plt.show()
     # print ao_data[-10:-1], ai_data[-10:-1]
+    test.start_position[0:2] = [0.5, 0.5]
+    test.move_to_start_position()
+    test.rotation = np.pi / 4
     images_t, images_r = test.sync_scan_read_2d_with_rotation()
     plt.subplot(221)
     plt.imshow(images_t[0])
