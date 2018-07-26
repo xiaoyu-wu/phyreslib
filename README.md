@@ -10,7 +10,7 @@ Welcome to physics research library (`phyreslib` or `prl`)! Based on research ex
 ```
 [~]$ edm envs create prl-env
 [~]$ edm shell -e prl-env
-(prl-env) [~]$ edm install traits traitsui chaco pyside numpy
+(prl-env) [~]$ edm install traits traitsui pyqt chaco numpy
 ```
 
 2. Checkout the appropriate branch on `phyreslib`.
