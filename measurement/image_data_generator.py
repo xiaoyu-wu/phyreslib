@@ -2,7 +2,7 @@
 import os
 
 # Major library imports
-from numpy import array, genfromtxt
+from numpy import genfromtxt
 
 # Enthought library imports
 from traits.api import HasTraits, Str, Int, Array
