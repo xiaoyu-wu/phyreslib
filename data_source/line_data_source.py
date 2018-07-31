@@ -1,4 +1,3 @@
-from numpy import linspace, zeros
 from traits.api import HasTraits, Str, Array, Event
 
 
@@ -20,6 +19,6 @@ class LineDataSource(HasTraits):
         super(LineDataSource, self).__init__(*args, **kwargs)
 
     def _anytrait_changed(self, name, value):
-        if name in ['xs', 'ys', 'zs', 'x_unit', 'y_unit', 'z_unit',
-                    'image_name', 'metadata', 'last_update']:
+        if name in ['xs', 'ys', 'x_unit', 'y_unit',
+                    'line_name', 'metadata', 'last_update']:
             self.data_source_changed = True
