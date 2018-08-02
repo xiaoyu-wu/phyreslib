@@ -24,15 +24,12 @@ class ImagePlotUI(HasTraits):
     plot = Instance(CMapImagePlot)
     colorbar = Instance(ColorBar)
 
-    # Plot data
-    pd = Instance(ArrayPlotData)
-
     # View options
     colormap = Enum(colormaps)
 
     # Traits view definitions:
     traits_view = View(
-        Group(UItem('container', editor=ComponentEditor(size=(350, 300)))),
+        Group(UItem('container', editor=ComponentEditor(size=(500, 450)))),
         resizable=True
     )
 
