@@ -6,8 +6,10 @@ from numpy import exp, linspace, meshgrid, array, errstate
 # Enthought library imports
 from traits.api import HasTraits, Instance, Enum, Trait, Callable
 from traitsui.api import Item, View, Group, UItem
-from chaco.api import ArrayPlotData, CMapImagePlot, ColorBar, LinearMapper, HPlotContainer, GridDataSource, \
-                      ImageData, DataRange2D, DataRange1D, GridMapper, PlotAxis
+from chaco.api import (
+    ArrayPlotData, CMapImagePlot, ColorBar, LinearMapper, HPlotContainer,
+    GridDataSource, ImageData, DataRange2D, DataRange1D, GridMapper, PlotAxis
+)
 from chaco.tools.api import PanTool, ZoomTool
 from chaco import default_colormaps
 from enable.api import ComponentEditor
@@ -38,18 +40,18 @@ class ImagePlotUI(HasTraits):
         buttons=["OK", "Cancel"]
     )
 
-    #---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Private Traits
-    #---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     _image_index = Instance(GridDataSource)
     _image_value = Instance(ImageData)
 
     _cmap = Trait(default_colormaps.gray, Callable)
 
-    #---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Public View interface
-    #---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __init__(self, *args, **kwargs):
         super(ImagePlotUI, self).__init__(*args, **kwargs)
@@ -59,9 +61,10 @@ class ImagePlotUI(HasTraits):
     def create_plot(self):
 
         # Create the mapper, etc
-        self._image_index = GridDataSource(array([]),
-                                           array([]),
-                                           sort_order=("ascending", "ascending"))
+        self._image_index = GridDataSource(
+            array([]),
+            array([]),
+            sort_order=("ascending", "ascending"))
         image_index_range = DataRange2D(self._image_index)
         # self._image_index.on_trait_change(self._metadata_changed,
         #                                   "metadata_changed")
@@ -71,7 +74,9 @@ class ImagePlotUI(HasTraits):
 
         # Create the colormapped scalar plot
         self.plot = CMapImagePlot(index=self._image_index,
-                                  index_mapper=GridMapper(range=image_index_range),
+                                  index_mapper=GridMapper(
+                                      range=image_index_range
+                                  ),
                                   value=self._image_value,
                                   value_mapper=self._cmap(image_value_range))
 
@@ -124,10 +129,9 @@ class ImagePlotUI(HasTraits):
         self.container.invalidate_draw()
         self.container.request_redraw()
 
-
-    #---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Event handlers
-    #---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _colormap_changed(self):
         self._cmap = default_colormaps.color_map_name_dict[self.colormap]
@@ -135,4 +139,3 @@ class ImagePlotUI(HasTraits):
             value_range = self.plot.color_mapper.range
             self.plot.color_mapper = self._cmap(value_range)
             self.container.request_redraw()
-

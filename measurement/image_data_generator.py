@@ -26,7 +26,8 @@ class ImageDataGenerator(HasTraits):
         """ Returns one row of data matrix specified by self.current_index
         """
         total_lines = self.full_image.shape[0]
-        # use current index mod by total lines in case index exceeds total number
+        # use current index mod by total lines
+        # in case index exceeds total number
         new_line = self.full_image[self.current_index % total_lines]
         self.current_index += 1
         return new_line

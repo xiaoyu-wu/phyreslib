@@ -1,5 +1,7 @@
 from math import sin, pi
-from traits.api import cached_property, Callable, Enum, Float, HasTraits, Int, Property
+from traits.api import (
+    cached_property, Callable, Enum, Float, HasTraits, Int, Property
+)
 
 FUNCTIONS = {"sin": sin}
 

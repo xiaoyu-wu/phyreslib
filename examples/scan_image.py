@@ -20,15 +20,17 @@ class ScanThread(Thread):
         # Update data source
         self.image_data_source.xs = self.fast_axis_array
         self.image_data_source.ys = self.slow_axis_array
-        self.image_data_source.zs = np.zeros((256,256))
+        self.image_data_source.zs = np.zeros((256, 256))
         self.line_data_source.xs = self.fast_axis_array
         for i in range(256):
             if not self.wants_abort:
                 now = time.time()
                 # Update one line of the matrix zs
-                self.image_data_source.zs[i] = self.image_data_generator.get_new_line()
+                self.image_data_source.zs[i] = \
+                    self.image_data_generator.get_new_line()
                 self.line_data_source.ys = self.image_data_source.zs[i]
-                # Update value of image_data_source.last_update to trigger event, data_source_changed
+                # Update value of image_data_source.last_update
+                # to trigger event, data_source_changed
                 self.image_data_source.last_update = str(now)
                 elapsed = time.time() - now
                 remaining = self.scan_period - elapsed
@@ -81,7 +83,8 @@ class Demo(HasTraits):
         self.line_data_source = LineDataSource()
         self.image_data_generator = ImageDataGenerator()
 
-    @on_trait_change('image_data_source, image_data_source.data_source_changed')
+    @on_trait_change('image_data_source, '
+                     'image_data_source.data_source_changed')
     def update_image_plot(self):
         self.image_plot.update(self.image_data_source)
 
@@ -90,9 +93,6 @@ class Demo(HasTraits):
         self.line_plot.update(self.line_data_source)
 
 
-def test():
+if __name__ == '__main__':
     demo = Demo()
     demo.configure_traits()
-
-if __name__ == '__main__':
-    test()
