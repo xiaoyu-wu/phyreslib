@@ -119,7 +119,7 @@ class NI6259(HasTraits):
         ao.ClearTask()
         ai.ClearTask()
 
-        return ai_data_list.reshape(ai_ch_num, time * ai_sample_rate)
+        return ai_data_list.reshape(ai_ch_num, int(time * ai_sample_rate))
 
     def multi_channel_ao(self, ao_channels, ao_data_list, time, ao_sample_rate):
         ao = Task()

@@ -38,7 +38,7 @@ def generate_waveform(waveform, time_span, freq, samp_rate, amplitude, phase, of
     """
     cycles = int(time_span * freq)
     points_per_cycle = int(samp_rate / freq)
-    output_data = np.zeros(time_span * samp_rate, dtype=np.float64)
+    output_data = np.zeros(int(time_span * samp_rate), dtype=np.float64)
     if waveform == "Sin":
         for i in range(points_per_cycle):
             for j in range(cycles):
@@ -108,8 +108,8 @@ def generate_output_voltage(scan_range, scan_rate, pixels, rotation=0, fast_axis
     return fast_voltages, slow_voltages
 
 
-AO_PORTS = range(4)
-AI_PORTS = range(24)
+AO_PORTS = list(range(4))
+AI_PORTS = list(range(24))
 
 
 class ScanController(HasTraits):
@@ -160,7 +160,8 @@ class ScanController(HasTraits):
 
         for corner in corners:
             if corner[0] < 0 or corner[0] > self.max_voltage or corner[1] < 0 or corner[1] > self.max_voltage:
-                print "WARNING! Output voltage exceeds lower or upper limit. Reset to previous rotation angle."
+                print("WARNING! Output voltage exceeds lower or upper limit. "
+                      "Reset to previous rotation angle.")
                 self.rotation = old
                 return
 
