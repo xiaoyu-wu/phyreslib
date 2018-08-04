@@ -8,9 +8,11 @@ class ImageDataSource(HasTraits):
     xs = Array
     ys = Array
     zs = Array
+
     x_unit = Str
     y_unit = Str
     z_unit = Str
+
     image_name = Str
     metadata = Str
     last_update = Str
@@ -20,7 +22,7 @@ class ImageDataSource(HasTraits):
         super(ImageDataSource, self).__init__(*args, **kwargs)
         self.xs = linspace(0, 1, 256)
         self.ys = linspace(0, 1, 256)
-        self.zs = zeros((256,256))
+        self.zs = zeros((256, 256))
 
     def _anytrait_changed(self, name, value):
         if name in ['xs', 'ys', 'zs', 'x_unit', 'y_unit', 'z_unit',
