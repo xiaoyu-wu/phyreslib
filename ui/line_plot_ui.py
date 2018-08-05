@@ -2,13 +2,18 @@
 from numpy import array, errstate
 
 # Enthought library imports
-from traits.api import HasTraits, Instance
+from traits.api import HasTraits, Instance, on_trait_change
 from traitsui.api import Group, UItem, View
 from enable.component_editor import ComponentEditor
 from chaco.api import ArrayPlotData, HPlotContainer, Plot
 
+from phyreslib.data_source.api import LineDataSource
+
 
 class LinePlotUI(HasTraits):
+    # Line data source
+    line_data_source = Instance(LineDataSource)
+
     # container for all plots
     container = Instance(HPlotContainer)
 
@@ -32,10 +37,11 @@ class LinePlotUI(HasTraits):
     # Public View interface
     # -------------------------------------------------------------------------
 
-    def __init__(self, *args, **kwargs):
-        super(LinePlotUI, self).__init__(*args, **kwargs)
+    def __init__(self, line_data_source=None):
+        super(LinePlotUI, self).__init__()
         with errstate(invalid='ignore'):
             self.create_plot()
+        self.line_data_source = line_data_source
 
     def create_plot(self):
 
@@ -50,9 +56,10 @@ class LinePlotUI(HasTraits):
         self.container = HPlotContainer()
         self.container.add(self.line_plot)
 
-    def update(self, line_data_source):
-        xs = line_data_source.xs
-        ys = line_data_source.ys
+    @on_trait_change('line_data_source.data_source_changed')
+    def update(self):
+        xs = self.line_data_source.xs
+        ys = self.line_data_source.ys
         self.pd.update(line_index=xs, line_value=ys)
         self.container.invalidate_draw()
         self.container.request_redraw()

@@ -4,7 +4,9 @@
 from numpy import exp, linspace, meshgrid, array, errstate
 
 # Enthought library imports
-from traits.api import HasTraits, Instance, Enum, Trait, Callable
+from traits.api import (
+    HasTraits, Instance, Enum, Trait, Callable, on_trait_change
+)
 from traitsui.api import Item, View, Group, UItem
 from chaco.api import (
     ArrayPlotData, CMapImagePlot, ColorBar, LinearMapper, HPlotContainer,
@@ -14,11 +16,15 @@ from chaco.tools.api import PanTool, ZoomTool
 from chaco import default_colormaps
 from enable.api import ComponentEditor
 
+from phyreslib.data_source.api import ImageDataSource
 
 colormaps = list(default_colormaps.color_map_name_dict.keys())
 
 
 class ImagePlotUI(HasTraits):
+    # Image data source
+    image_data_source = Instance(ImageDataSource)
+
     # container for all plots
     container = Instance(HPlotContainer)
 
@@ -53,10 +59,11 @@ class ImagePlotUI(HasTraits):
     # Public View interface
     # -------------------------------------------------------------------------
 
-    def __init__(self, *args, **kwargs):
-        super(ImagePlotUI, self).__init__(*args, **kwargs)
+    def __init__(self, image_data_source=None):
+        super(ImagePlotUI, self).__init__()
         with errstate(invalid='ignore'):
             self.create_plot()
+        self.image_data_source = image_data_source
 
     def create_plot(self):
 
@@ -116,14 +123,13 @@ class ImagePlotUI(HasTraits):
         self.container.add(self.colorbar)
         self.container.add(self.plot)
 
-    def update(self, image_data_source):
-        xs = image_data_source.xs
-        ys = image_data_source.ys
-        zs = image_data_source.zs
-        self.minz = zs.min()
-        self.maxz = zs.max()
-        self.colorbar.index_mapper.range.low = self.minz
-        self.colorbar.index_mapper.range.high = self.maxz
+    @on_trait_change('image_data_source.data_source_changed')
+    def update_plot(self):
+        xs = self.image_data_source.xs
+        ys = self.image_data_source.ys
+        zs = self.image_data_source.zs
+        self.colorbar.index_mapper.range.low = zs.min()
+        self.colorbar.index_mapper.range.high = zs.max()
         self._image_index.set_data(xs, ys)
         self._image_value.data = zs
         self.container.invalidate_draw()
