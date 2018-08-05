@@ -75,22 +75,16 @@ class Demo(HasTraits):
         resizable=True
     )
 
-    def __init__(self, *args, **kwargs):
-        super(Demo, self).__init__(*args, **kwargs)
-        self.image_plot = ImagePlotUI()
+    def __init__(self):
+        super(Demo, self).__init__()
+
         self.image_data_source = ImageDataSource()
-        self.line_plot = LinePlotUI()
+        self.image_plot = ImagePlotUI(image_data_source=self.image_data_source)
+
         self.line_data_source = LineDataSource()
+        self.line_plot = LinePlotUI(line_data_source=self.line_data_source)
+
         self.image_data_generator = ImageDataGenerator()
-
-    @on_trait_change('image_data_source, '
-                     'image_data_source.data_source_changed')
-    def update_image_plot(self):
-        self.image_plot.update(self.image_data_source)
-
-    @on_trait_change('line_data_source, line_data_source.data_source_changed')
-    def update_line_plot(self):
-        self.line_plot.update(self.line_data_source)
 
 
 if __name__ == '__main__':
