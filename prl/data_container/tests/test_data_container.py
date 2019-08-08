@@ -2,7 +2,7 @@ from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_allclose
 from traits.testing.api import UnittestTools
-from prl.model.data_container import CurveData
+from prl.data_container import CurveData
 
 
 class TestCurveData(TestCase, UnittestTools):
